@@ -141,7 +141,7 @@ steal('can/util', 'can/route', function (can) {
 
 		// Handler function for `click` events.
 		var anchorClickHandler = function (e) {
-			if (!(e.isDefaultPrevented ? e.isDefaultPrevented() : e.defaultPrevented === true)) {
+			if (!(e.isDefaultPrevented ? e.isDefaultPrevented() : e.defaultPrevented === true) && !(e.shiftKey || e.ctrlKey || e.altKey || e.metaKey)) {
 				// YUI calls back events triggered with this as a wrapped object.
 				var node = this._node || this;
 				// Fix for IE showing blank host, but blank host means current host.
