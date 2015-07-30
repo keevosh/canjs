@@ -64,6 +64,17 @@ up in the [can.view.Scope can.stache scope].
 
 @body
 
+
+Watch this video for an overview of can.Component, why you should use it, and a hello world example:
+
+<iframe width="662" height="372" src="https://www.youtube.com/embed/BM1Jc3lVUrk" frameborder="0" allowfullscreen></iframe>
+
+This video provides a more in depth overview of the API and goes over several examples of can.Components:
+
+<iframe width="662" height="372" src="https://www.youtube.com/embed/ogX765S4iuc" frameborder="0" allowfullscreen></iframe>
+
+Note: the videos above reference the `scope` property, which was replaced by the [can.Component::viewModel viewModel] property in 2.2.
+
 ## Use
 
 To create a `can.Component`, you must first [can.Component.extend extend] `can.Component`
@@ -110,11 +121,15 @@ you'll render a template with many custom tags like:
       </ui-panel>
     </srchr-app>
 
-### Extending can.Component
+### Creating a can.Component
 
 Use [can.Component.extend] to create a `can.Component` constructor function
 that will automatically get initialized whenever the component's tag is 
-found.
+found. 
+
+Note that inheriting from components works differently than other CanJS APIs. You can't call `.extend` on a particular component to create a "subclass" of that component. 
+
+Instead, components work more like HTML elements. To reuse functionality from a base component, build on top of it with parent components that wrap other components in their template and pass any needed viewModel properties via attributes.
 
 ### Tag
 
@@ -238,6 +253,8 @@ adds "!" to the message every time `<hello-world>` is clicked:
         }
       }
     });
+
+Components have the ability to bind to special [can.events.inserted inserted] and [can.events.removed removed] events that are called when a component's tag has been inserted into or removed from the page.
 
 ### Helpers
 

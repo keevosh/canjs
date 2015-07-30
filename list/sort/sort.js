@@ -35,7 +35,7 @@ steal('can/util', 'can/list', function () {
 	};
 
 	var proto = can.List.prototype,
-		_changes = proto._changes,
+		_changes = proto._changes || function(){},
 		setup = proto.setup,
 		unbind = proto.unbind;
 
@@ -46,10 +46,10 @@ steal('can/util', 'can/list', function () {
 	can.extend(proto, {
 		setup: function (instances, options) {
 			setup.apply(this, arguments);
+			this.bind('change', can.proxy(this._changes, this));
 			this._comparatorBound = false;
-			this._init = 1;
+
 			this.bind('comparator', can.proxy(this._comparatorUpdated, this));
-			delete this._init;
 			
 			if (this.comparator) {
 				this.sort();
@@ -211,7 +211,7 @@ steal('can/util', 'can/list', function () {
 					b = this._getComparatorValue(this.attr(iMin), comparator);
 
 					// [1, 2, 3, 4(b), 9, 6, 3(a)]
-					if (comparatorFn.call(this, a, b) === -1) {
+					if (comparatorFn.call(this, a, b) < 0) {
 						isSorted = false;
 						iMin = i;
 					}
@@ -222,7 +222,7 @@ steal('can/util', 'can/list', function () {
 					// that are improperly sorted.
 					// Note: This is not part of the original selection
 					// sort agortithm
-					if (c && comparatorFn.call(this, a, c) === -1) {
+					if (c && comparatorFn.call(this, a, c) < 0) {
 						isSorted = false;
 					}
 

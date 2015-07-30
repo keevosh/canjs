@@ -15,6 +15,7 @@ steal(
 
 	// Make sure that we can also use our modules with Stache as a plugin
 	parser = parser || can.view.parser;
+	can.view.parser = parser;
 	viewCallbacks = viewCallbacks || can.view.callbacks;
 
 	var svgNamespace = "http://www.w3.org/2000/svg";
@@ -101,10 +102,13 @@ steal(
 			},
 			// Copys the state object for use in renderers.
 			copyState = function(overwrites){
+				var lastElement = state.sectionElementStack[state.sectionElementStack.length - 1];
 				var cur = {
 					tag: state.node && state.node.tag,
 					attr: state.attr && state.attr.name,
-					directlyNested: state.sectionElementStack.length ? state.sectionElementStack[state.sectionElementStack.length - 1] === "section" : true
+					// <content> elements should be considered direclty nested
+					directlyNested: state.sectionElementStack.length ?
+						lastElement === "section" || lastElement === "custom": true
 				};
 				return overwrites ? can.simpleExtend(cur, overwrites) : cur;
 			},
@@ -112,7 +116,7 @@ steal(
 				if( !node.attributes ) {
 					node.attributes = [];
 				}
-				node.attributes.push(callback);
+				node.attributes.unshift(callback);
 			};
 		
 		parser(template,{
@@ -136,19 +140,20 @@ steal(
 					// If it's a custom tag with content, we need a section renderer.
 					section.add(state.node);
 					if(isCustomTag) {
-						addAttributesCallback(state.node, function(scope, options){
+						addAttributesCallback(state.node, function(scope, options, parentNodeList){
 							viewCallbacks.tagHandler(this,tagName, {
 								scope: scope,
 								options: options,
 								subtemplate: null,
-								templateType: "stache"
+								templateType: "stache",
+								parentNodeList: parentNodeList
 							});
 						});
 					}
 				} else {
 					section.push(state.node);
 					
-					state.sectionElementStack.push("element");
+					state.sectionElementStack.push( isCustomTag ? 'custom': 'element' );
 					
 					// If it's a custom tag with content, we need a section renderer.
 					if( isCustomTag ) {
@@ -176,12 +181,13 @@ steal(
 				
 				var oldNode = section.pop();
 				if( isCustomTag ) {
-					addAttributesCallback(oldNode, function(scope, options){
+					addAttributesCallback(oldNode, function(scope, options, parentNodeList){
 						viewCallbacks.tagHandler(this,tagName, {
 							scope: scope,
 							options: options,
 							subtemplate: renderer,
-							templateType: "stache"
+							templateType: "stache",
+							parentNodeList: parentNodeList
 						});
 					});
 				}
@@ -208,7 +214,7 @@ steal(
 					
 					state.node.attrs[state.attr.name] =
 						state.attr.section ? state.attr.section.compile(copyState()) : state.attr.value;
-					
+
 					var attrCallback = viewCallbacks.attr(attrName);
 					if(attrCallback) {
 						if( !state.node.attributes ) {
@@ -268,14 +274,20 @@ steal(
 				}
 				// `{{}}` in an attribute like `class="{{}}"`
 				else if(state.attr) {
-					
-					if(!state.attr.section) {
-						state.attr.section = new TextSectionBuilder();
-						if(state.attr.value) {
-							state.attr.section.add(state.attr.value);
+					// if in a special
+					if( viewCallbacks.attr(state.attr.name ) && !state.attr.value ) {
+						this.attrValue("{{"+text+"}}");
+					} else {
+						
+						if(!state.attr.section) {
+							state.attr.section = new TextSectionBuilder();
+							if(state.attr.value) {
+								state.attr.section.add(state.attr.value);
+							}
 						}
+						makeRendererAndUpdateSection(state.attr.section, mode, expression );
 					}
-					makeRendererAndUpdateSection(state.attr.section, mode, expression );
+					
 				}
 				// `{{}}` in a tag like `<div {{}}>`
 				else if(state.node) {

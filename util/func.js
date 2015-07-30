@@ -483,7 +483,7 @@ The list of configuration options is the same as for [jQuery.ajax](http://api.jq
 @body
 `can.ajax( settings )` is used to make an asynchronous HTTP (AJAX) request
 similar to [http://api.jquery.com/jQuery.ajax/jQuery.ajax]. The example below
-makes use of (can.frag)[http://canjs.com/docs/can.frag.html].
+makes use of [can.frag].
 
 	can.ajax({
 		url: 'http://canjs.com/docs/can.ajax.html',
@@ -986,7 +986,7 @@ Gets an object from a string.
 
 Gets an object from a string.  It can also modify objects on the 'object path' by removing or adding properties.
 
-    Foo = {Bar: {Zar: {"Ted"}}}
+    Foo = {Bar: {Zar: "Ted"}}
     can.getObject("Foo.Bar.Zar") //-> "Ted"
 */
 //

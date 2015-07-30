@@ -1358,4 +1358,72 @@ steal('can/util', "can/observe", 'can/map', 'can/list', "can/test", "steal-qunit
 		equal(count, 1, "attr only called once to get cached value");
 	});
 
+	test("computes in observes leak handlers (#1676)", function(){
+		var handler = function() {};
+
+		// 1. Create a Map
+		var person = new can.Map({
+		  pet: {type: 'dog', name: 'fluffy'}
+		});
+		
+		equal(person._bindings || 0, 0, "no bindings");
+		
+		// 2. Manually add a compute that references a nested property of the same Map
+		person.attr('petInfo', can.compute(function() {
+		  return person.attr('pet.type') + ': ' + person.attr('pet.name');
+		}));
+		
+		equal(person._bindings || 0, 0, "After adding compute no bindings");
+		
+		// 3. Bind to the Map's 'change' event
+		person.bind('change', handler);
+		equal(person._bindings, 2, "After adding compute no bindings");
+		
+		// 4. Unbind the 'change' event
+		person.unbind('change', handler);
+		equal(person._bindings, 0, "After unbinding no bindings");
+	});
+
+	test('compute bound to object property (#1719)', 4, function () {
+		var obj = {};
+		obj.foo = 'bar';
+
+		var value = can.compute(obj, 'foo', 'change');
+		equal(value(), 'bar', 'property retrieved correctly');
+
+		value('baz');
+		equal(obj.foo, 'baz', 'property changed correctly');
+
+		var handler = function(ev, newVal, oldVal) {
+			equal(newVal, 'qux', 'change handler newVal correct');
+			equal(oldVal, 'baz', 'change handler oldVal correct');
+		};
+		value.bind('change', handler);
+		value('qux');
+		value.unbind('change', handler);
+	});
+
+	test('compute bound to nested object property (#1719)', 4, function () {
+		var obj = {
+			prop: {
+				subprop: {
+					foo: 'bar'
+				}
+			}
+		};
+
+		var value = can.compute(obj, 'prop.subprop.foo', 'change');
+		equal(value(), 'bar', 'property retrieved correctly');
+
+		value('baz');
+		equal(obj.prop.subprop.foo, 'baz', 'property changed correctly');
+
+		var handler = function(ev, newVal, oldVal) {
+			equal(newVal, 'qux', 'change handler newVal correct');
+			equal(oldVal, 'baz', 'change handler oldVal correct');
+		};
+		value.bind('change', handler);
+		value('qux');
+		value.unbind('change', handler);
+	});
 });

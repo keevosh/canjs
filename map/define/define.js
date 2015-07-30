@@ -1,4 +1,4 @@
-steal('can/util', 'can/observe', function (can) {
+steal('can/util','can/map/map_helpers.js', 'can/observe', function (can, mapHelpers) {
 	var define = can.define = {};
 	
 	var getPropDefineBehavior = function(behavior, attr, define) {
@@ -18,7 +18,7 @@ steal('can/util', 'can/observe', function (can) {
 	};
 
 	// This is called when the Map is defined
-	can.Map.helpers.define = function (Map) {
+	mapHelpers.define = function (Map) {
 		var definitions = Map.prototype.define;
 		//!steal-remove-start
 		if(Map.define){
@@ -95,8 +95,8 @@ steal('can/util', 'can/observe', function (can) {
 			}
 		}
 
-		// Replace original this.attr
-		this._get = originalGet;
+		// delete this._get which will default to the one on the prototype.
+		delete this._get;
 
 		return defaults;
 	};
@@ -151,19 +151,19 @@ steal('can/util', 'can/observe', function (can) {
 					//!steal-remove-start
 					clearTimeout(asyncTimer);
 					//!steal-remove-end
-				}, errorCallback, getter ? this[prop].computeInstance.lastSetValue.get() : current);
+				}, errorCallback, getter ? this._computedAttrs[prop].compute.computeInstance.lastSetValue.get() : current);
 			if (getter) {
 				// if there's a getter we don't call old set
 				// instead we call the getter's compute with the new value
-				if(setValue !== undefined && !setterCalled && setter.length >= 2) {
-					this[prop](setValue);
+				if(setValue !== undefined && !setterCalled && setter.length >= 1) {
+					this._computedAttrs[prop].compute(setValue);
 				}
 				
 				can.batch.stop();
 				return;
 			}
 			// if it took a setter and returned nothing, don't set the value
-			else if (setValue === undefined && !setterCalled && setter.length >= 2) {
+			else if (setValue === undefined && !setterCalled && setter.length >= 1) {
 				//!steal-remove-start
 				asyncTimer = setTimeout(function () {
 					can.dev.warn('can/map/setter.js: Setter "' + prop + '" did not return a value or call the setter callback.');
@@ -204,6 +204,9 @@ steal('can/util', 'can/observe', function (can) {
 			}
 		},
 		'number': function (val) {
+			if(val == null) {
+				return val;
+			}
 			return +(val);
 		},
 		'boolean': function (val) {
@@ -223,6 +226,9 @@ steal('can/util', 'can/observe', function (can) {
 			return val;
 		},
 		'string': function (val) {
+			if(val == null) {
+				return val;
+			}
 			return '' + val;
 		},
 		'compute': {
@@ -274,8 +280,8 @@ steal('can/util', 'can/observe', function (can) {
 		return oldType.call(this, newValue, prop);
 	};
 
-	var oldRemove = proto._remove;
-	proto._remove = function (prop, current) {
+	var oldRemove = proto.__remove;
+	proto.__remove = function (prop, current) {
 		var remove = getPropDefineBehavior("remove", prop, this.define),
 			res;
 		if (remove) {
@@ -295,32 +301,29 @@ steal('can/util', 'can/observe', function (can) {
 		return oldRemove.call(this, prop, current);
 	};
 
-	var oldSetupComputes = proto._setupComputes;
-	proto._setupComputes = function (defaultsValues) {
+	var oldSetupComputes = proto._setupComputedProperties;
+	proto._setupComputedProperties = function () {
 		oldSetupComputes.apply(this, arguments);
 		for (var attr in this.define) {
 			var def = this.define[attr],
 				get = def.get;
 			if (get) {
-				this[attr] = can.compute.async(defaultsValues[attr], get, this);
-				this._computedBindings[attr] = {
-					count: 0
-				};
+				mapHelpers.addComputedAttr(this, attr, can.compute.async(undefined, get, this));
 			}
 		}
 	};
 	// Overwrite the invidual property serializer b/c we will overwrite it.
-	var oldSingleSerialize = can.Map.helpers._serialize;
-	can.Map.helpers._serialize = function(map, name, val){
-		return serializeProp(map, name, val);
+	var oldSingleSerialize = proto.___serialize;
+	proto.___serialize = function(name, val){
+		return serializeProp(this, name, val);
 	};
 	// If the map has a define serializer for the given attr, run it.
 	var serializeProp = function(map, attr, val) {
 		var serializer = attr === "*" ? false : getPropDefineBehavior("serialize", attr, map.define);
 		if(serializer === undefined) {
-			return oldSingleSerialize.apply(this, arguments);
+			return oldSingleSerialize.call(map, attr, val);
 		} else if(serializer !== false){
-			return typeof serializer === "function" ? serializer.call(map, val, attr): oldSingleSerialize.apply(this, arguments);
+			return typeof serializer === "function" ? serializer.call(map, val, attr): oldSingleSerialize.call(map, attr, val);
 		}
 	};
 	
